@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard – Smart Parking</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+    }
+    header {
+      background: #2c3e50;
+      color: #fff;
+      padding: 15px;
+      text-align: center;
+    }
+    .container {
+      padding: 30px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    input[type="text"] {
+      display: block;
+      margin: 0 auto 20px;
+      padding: 10px;
+      width: 60%;
+      font-size: 16px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    .summary {
+      text-align: center;
+      margin-bottom: 20px;
+      font-weight: bold;
+    }
+    .chart-container {
+      max-width: 400px;
+      margin: 0 auto 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    th {
+      background: #34495e;
+      color: #fff;
+    }
+    .release-btn {
+      padding: 5px 10px;
+      background: #e74c3c;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .next-btn {
+      display: block;
+      margin: 20px auto;
+      padding: 12px 30px;
+      font-size: 16px;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .next-btn:hover {
+      background-color: #27ae60;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Admin Dashboard</h1>
+</header>
+
+<div class="container">
+  <h2>Current Bookings</h2>
+
+  <!-- Summary Stats -->
+  <div class="summary" id="summaryStats"></div>
+
+  <!-- Graph Chart -->
+  <div class="chart-container">
+    <canvas id="slotChart"></canvas>
+  </div>
+
+  <!-- Search Bar -->
+  <input type="text" id="searchInput" placeholder="Search by name, vehicle number, or slot...">
+
+  <table id="bookingTable">
+    <thead>
+      <tr>
+        <th>Slot</th>
+        <th>Name</th>
+        <th>User ID</th>
+        <th>Phone</th>
+        <th>Vehicle Number</th>
+        <th>Gender</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Release</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <!-- Navigation Button -->
+  <button class="next-btn" onclick="goToReleasePage()">Next →</button>
+</div>
+
+<script>
+const slotStates = JSON.parse(localStorage.getItem('slotStates')) || {};
+const allUsers = JSON.parse(localStorage.getItem('registeredUsers')) || [];
+const tableBody = document.querySelector('#bookingTable tbody');
+
+function renderBookings() {
+  tableBody.innerHTML = '';
+  let bookedCount = 0;
+  let totalSlots = 30;
+
+  for (const [slotId, slotData] of Object.entries(slotStates)) {
+    if (slotData.status === 'booked') {
+      bookedCount++;
+      const user = allUsers.find(u => u.email === slotData.email);
+      const row = document.createElement('tr');
+      row.innerHTML = `
+        <td>${slotId}</td>
+        <td>${user?.name || 'N/A'}</td>
+        <td>${user?.userId || 'N/A'}</td>
+        <td>${user?.phone || 'N/A'}</td>
+        <td>${user?.vehicleNumber || 'N/A'}</td>
+        <td>${user?.gender || 'N/A'}</td>
+        <td>${slotData.date}</td>
+        <td>${slotData.time}</td>
+        <td><button class="release-btn" onclick="releaseSlot('${slotId}')">Release</button></td>
+      `;
+      tableBody.appendChild(row);
+    }
+  }
+
+  const availableCount = totalSlots - bookedCount;
+  document.getElementById('summaryStats').innerText =
+    `Total Slots: ${totalSlots} | Booked: ${bookedCount} | Available: ${availableCount}`;
+
+  renderChart(bookedCount, availableCount);
+}
+
+function releaseSlot(slotId) {
+  if (confirm(`Release slot ${slotId}?`)) {
+    delete slotStates[slotId];
+    localStorage.setItem('slotStates', JSON.stringify(slotStates));
+    renderBookings();
+  }
+}
+
+function goToReleasePage() {
+  window.location.href = 'release.html';
+}
+
+// Search Function
+document.getElementById('searchInput').addEventListener('input', function() {
+  const searchValue = this.value.toLowerCase();
+  const rows = document.querySelectorAll('#bookingTable tbody tr');
+
+  rows.forEach(row => {
+    const text = row.innerText.toLowerCase();
+    row.style.display = text.includes(searchValue) ? '' : 'none';
+  });
+});
+
+// Render Chart
+function renderChart(booked, available) {
+  const ctx = document.getElementById('slotChart').getContext('2d');
+  if (window.slotChart) {
+    window.slotChart.destroy();
+  }
+  window.slotChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Booked', 'Available'],
+      datasets: [{
+        data: [booked, available],
+        backgroundColor: ['#e74c3c', '#2ecc71']
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: {
+          position: 'bottom'
+        }
+      }
+    }
+  });
+}
+
+// Initial Render
+renderBookings();
+</script>
+
+</body>
+</html>

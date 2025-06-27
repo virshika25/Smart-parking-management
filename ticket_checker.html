@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ticket Checker – Smart Parking</title>
+
+  <!-- QR‑scanner library -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}
+    body{min-height:100vh;background:#f4f4f4;display:flex;flex-direction:column;color:#333}
+    header,footer{background:#2E8B57;color:#fff;padding:16px 24px;text-align:center}
+    main{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px;gap:24px}
+
+    #reader{width:320px;height:320px;border:4px solid #2E8B57;border-radius:10px}
+    #status{font-size:18px;font-weight:700;text-align:center}
+    .btn{padding:10px 26px;border:none;border-radius:25px;font-size:16px;background:#2E8B57;color:#fff;cursor:pointer;transition:.3s}
+    .btn:hover{background:#246b43}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Smart Vehicle Parking – Ticket Checker</h1>
+</header>
+
+<main>
+  <div id="reader"></div>
+  <div id="status">Press “Start Scanner”</div>
+  <button class="btn" id="startBtn">Start Scanner</button>
+</main>
+
+<footer>&copy; 2025 Smart Vehicle Parking System</footer>
+
+<script>
+  /* ---------- SET‑UP ---------- */
+  const statusEl = document.getElementById('status');
+  const startBtn  = document.getElementById('startBtn');
+  const html5Qr   = new Html5Qrcode("reader");
+  let   running   = false;
+
+  /* All valid bookings saved by ticket.html */
+  const bookings  = JSON.parse(localStorage.getItem('allBookings') || '[]');
+
+  /* ---------- START SCAN ---------- */
+  startBtn.onclick = () => {
+    if (running) return;
+    running = true;
+    statusEl.textContent = "📷 Scanning…";
+    statusEl.style.color = "#333";
+
+    html5Qr.start(
+      { facingMode:"environment" },
+      { fps:12, qrbox:250 },
+      handleSuccess,
+      () => {}           // ignore failures
+    ).catch(err => {
+      statusEl.textContent = "Camera error: " + err;
+      running = false;
+    });
+  };
+
+  /* ---------- HANDLE SUCCESSFUL SCAN ---------- */
+  function handleSuccess(decodedText){
+    html5Qr.stop();             // stop camera
+    running = false;
+
+    let ticketObj = null;
+    try {                       // QR contains JSON from ticket.html
+      ticketObj = JSON.parse(decodedText);
+    } catch {                   // if it isn’t JSON, mark invalid
+      statusEl.style.color = "red";
+      statusEl.textContent = "❌ Invalid QR (not JSON)";
+      return;
+    }
+
+    const match = bookings.find(b => b.bookingId === ticketObj.bookingId);
+
+    if (match){
+      statusEl.style.color = "green";
+      statusEl.innerHTML = `✅ VALID TICKET<br>
+        Booking ID: <b>${match.bookingId}</b><br>
+        Slot: ${match.slot}<br>
+        Date: ${match.date}<br>
+        Hours: ${match.hours}`;
+    } else {
+      statusEl.style.color = "red";
+      statusEl.textContent = "❌ Ticket NOT found!";
+    }
+  }
+</script>
+
+</body>
+</html>
